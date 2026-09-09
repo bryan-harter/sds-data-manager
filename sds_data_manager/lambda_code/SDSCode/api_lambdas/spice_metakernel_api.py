@@ -17,10 +17,34 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
-def _convert_input_times_to_j2000(start_date_str, end_date_str):
-    """Convert input to seconds since J2000.
+def _convert_input_times_to_j2000(
+    start_date_str: str | None, end_date_str: str | None
+) -> tuple[float | None, float | None]:
+    """Convert input date strings to seconds since J2000.
 
     Either input may be None, in which case it will be returned as None for that value.
+
+    Each input is first parsed as a date string in ''YYYYMMDD'' format. If that fails,
+    the value is then treated as an already converted J2000 seconds value. When a date
+    string is successfully parsed the leapseconds kernel is loaded if it is not already.
+
+    Parameters
+    ----------
+    start_date_str : str or None
+        The start date, either as a ``YYYYMMDD`` string or a string
+        representation of a J2000 seconds value. None if no start
+        bound was provided.
+    end_date_str : str or None
+        The end date, either as a ``YYYYMMDD`` string or a string
+        representation of a J2000 seconds value. None if no end bound
+        was provided.
+
+    Returns
+    -------
+    tuple[float or None, float or None]
+        A tuple of (start_time, end_time), each given in seconds past
+        the J2000 epoch, or None where the corresponding input was
+        None.
     """
 
     def _convert_single(date_str):
