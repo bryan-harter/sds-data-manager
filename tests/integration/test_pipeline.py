@@ -7,6 +7,7 @@ a run reports exactly which products succeeded and which failed.
 
 import time
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
@@ -30,56 +31,34 @@ def _wait_for_file_path(engine, file_path, timeout_seconds, poll_seconds=5):
     return False
 
 
-def test_glows_l0_raw_indexed(sds_db_engine):
-    """Check that the GLOWS L0 file is indexed into the database within a minute."""
-    print("Waiting for GLOWS L0 file...")
-    file_path = (
-        "imap/glows/l0/2026/01/imap_glows_l0_raw_20260101-repoint00096_v001.0002.pkts"
-    )
-    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=60), (
-        f"{file_path} was not indexed within 60 seconds."
-    )
-
-
-def test_glows_l1a_hist_generated(sds_db_engine):
-    """Check that the GLOWS l1a-hist file is indexed into the database."""
-    print("Waiting for GLOWS L1A file...")
-    file_path = (
-        "imap/glows/l1a/2026/01/imap_glows_l1a_hist_20260101-repoint00096_v001.0001.cdf"
-    )
-    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=600), (
-        f"{file_path} was not indexed within 600 seconds."
-    )
-
-
-def test_glows_l1b_hist_generated(sds_db_engine):
-    """Check that the GLOWS l1b-hist file is indexed into the database."""
-    print("Waiting for GLOWS L1B file...")
-    file_path = (
-        "imap/glows/l1b/2026/01/imap_glows_l1b_hist_20260101-repoint00096_v001.0001.cdf"
-    )
-    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=600), (
-        f"{file_path} was not indexed within 600 seconds."
-    )
-
-
-def test_glows_l2_hist_generated(sds_db_engine):
-    """Check that the GLOWS l2-hist file is indexed into the database."""
-    print("Waiting for GLOWS L2 file...")
-    file_path = (
-        "imap/glows/l2/2026/01/imap_glows_l2_hist_20260101-repoint00096_v001.0001.cdf"
-    )
-    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=600), (
-        f"{file_path} was not indexed within 600 seconds."
-    )
-
-
-def test_glows_l3a_hist_generated(sds_db_engine):
-    """Check that the GLOWS l3a-hist file is indexed into the database."""
-    print("Waiting for GLOWS L3A file...")
-    file_path = (
-        "imap/glows/l3a/2026/01/imap_glows_l3a_hist_20260101-repoint00096_v001.0001.cdf"
-    )
-    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=600), (
-        f"{file_path} was not indexed within 600 seconds."
+@pytest.mark.parametrize(
+    ("file_path", "timeout"),
+    [
+        (
+            "imap/glows/l0/2026/01/imap_glows_l0_raw_20260101-repoint00096_v001.0002.pkts",
+            60,
+        ),
+        (
+            "imap/glows/l1a/2026/01/imap_glows_l1a_hist_20260101-repoint00096_v001.0001.cdf",
+            600,
+        ),
+        (
+            "imap/glows/l1b/2026/01/imap_glows_l1b_hist_20260101-repoint00096_v001.0001.cdf",
+            600,
+        ),
+        (
+            "imap/glows/l2/2026/01/imap_glows_l2_hist_20260101-repoint00096_v001.0001.cdf",
+            600,
+        ),
+        (
+            "imap/glows/l3a/2026/01/imap_glows_l3a_hist_20260101-repoint00096_v001.0001.cdf",
+            600,
+        ),
+    ],
+)
+def test_glows_files_generated(sds_db_engine, file_path, timeout):
+    """Check that the GLOWS science file is indexed into the database."""
+    print(f"Waiting for {file_path} for up to {timeout} seconds...")
+    assert _wait_for_file_path(sds_db_engine, file_path, timeout_seconds=timeout), (
+        f"{file_path} was not indexed within {timeout} seconds."
     )
