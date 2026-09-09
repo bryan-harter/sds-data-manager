@@ -3,22 +3,21 @@
 import json
 import os
 from datetime import datetime, timedelta
+from unittest.mock import patch
 
 import imap_data_access
 import pytest
 
-from sds_data_manager.lambda_code.SDSCode.api_lambdas import spice_metakernel_api
-from sds_data_manager.lambda_code.SDSCode.database import models
-from sds_data_manager.lambda_code.SDSCode.spice_utilities import (
-    MAXIMUM_MISSION_J2000_TIME,
+from sds_data_manager.lambda_code.SDSCode.api_lambdas import (
+    spice_metakernel_api,
+    spice_query_api,
 )
-from unittest.mock import patch
-
+from sds_data_manager.lambda_code.SDSCode.database import models
 from sds_data_manager.lambda_code.SDSCode.spice_utilities import (
     MAXIMUM_MISSION_J2000_TIME,
     metakernel_builder,
 )
-from sds_data_manager.lambda_code.SDSCode.api_lambdas import spice_query_api
+
 
 def _irrelevant_data():
     """Populate irrelevant columns in DB with dummy data."""
@@ -531,6 +530,7 @@ def test_metakernel_only_end_time_provided(session):
 
     assert result["statusCode"] == 200
     assert json.loads(result["body"]) == ["imap_1000_001_1000_100_002.ah.bc"]
+
 
 def test_metakernel_start_time_omitted_not_forwarded(session):
     """Omitted start_time must not appear as a key in the downstream query."""
