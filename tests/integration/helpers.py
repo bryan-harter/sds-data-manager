@@ -164,11 +164,12 @@ def wipe_all_tables(engine: Engine) -> None:
     a single ``TRUNCATE`` across the sorted tables clears them while resetting
     identity sequences. ``CASCADE`` handles any foreign-key relationships.
     """
-    table_names = [table.name for table in Base.metadata.sorted_tables]
-    if not table_names:
-        return
-    quoted = ", ".join(f'"{name}"' for name in table_names)
     with engine.begin() as connection:
+        preparer = connection.dialect.identifier_preparer
+        tables = Base.metadata.sorted_tables
+        if not tables:
+            return
+        quoted = ", ".join(preparer.format_table(t) for t in tables)
         connection.execute(text(f"TRUNCATE TABLE {quoted} RESTART IDENTITY CASCADE"))
 
 

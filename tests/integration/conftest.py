@@ -16,7 +16,7 @@ import boto3
 import pytest
 
 from tests.integration import helpers
-from tests.integration.integration_test_files import SOURCE_FILES
+from tests.integration.integration_test_files import TEST_FILES
 
 # Only run on the development account.
 DEV_ACCOUNT = "449431850278"
@@ -105,4 +105,4 @@ def _environment_setup(boto_session, guard_account, sds_db_engine, data_bucket):
     print("Wiping data bucket...")
     helpers.wipe_data_bucket(s3_client, data_bucket)
     print("Copying source files to data bucket...")
-    helpers.copy_source_files(s3_client, data_bucket, SOURCE_FILES)
+    helpers.copy_source_files(s3_client, data_bucket, TEST_FILES)
