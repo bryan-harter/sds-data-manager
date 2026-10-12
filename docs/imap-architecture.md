@@ -40,7 +40,7 @@ CDK constructs are defined under `sds_data_manager/constructs/`.
 
 ## AWS Pipeline (Ingest & Event Flow)
 
-1. **Ingest**: Files arrive via the upload API or are pulled by a scheduled Lambda function (packet downloader). They are placed in an S3 bucket with strict naming conventions defined in the `imap-data-access` library.
+1. **Ingest**: Files arrive via the upload API or are pulled by a scheduled Lambda function (packet downloader). They are placed in an S3 bucket with strict naming conventions defined in the `imap-data-access` library. A weekly Dagster asset also uploads new versions of L0 files that are missing late-arriving packets (see [WebPODA data gap filler](#webpoda-data-gap-filler)).
 2. **EventBridge & Indexer**: When new files arrive in S3, EventBridge triggers the Indexer Lambda.
 3. **Database Insertion**: The Indexer extracts metadata from the file and inserts it into the appropriate database table depending on the data type.
 
@@ -90,8 +90,22 @@ Jobs and assets are **not** hand-written per data product — they are generated
 - **Partitions**: Assets are partitioned dynamically using custom names with start and end times (daily, repoint, 10-day, 30-day, 3/6-month, 1-year) — see `custom_partitions.py` and `config.py` (`MISSION_START_TIME`, `CadenceDays`). The web UI acts as a dashboard for scientists to monitor product statuses.
 - **Storage scope**: Dagster currently *only* orchestrates science files (omitting ancillary and SPICE files due to arbitrary times).
 
+### WebPODA data gap filler
+
+The packet downloader lambda only makes L0 files from the packets that WebPODA received recently (queried by Earth Received Time). Packets that reach WebPODA late can therefore be missing from L0 files that already exist. `data_gap_filler.py` fills those gaps with the spacecraft time (SCT) query mode of `imap_data_access.webpoda` (imap-data-access >= 1.3.0). It does the same as running `imap-data-access webpoda --query-mode sct --upload-to-sdc` for every instrument.
+
+- **`webpoda_data_gap_filler_sensor`** requests one run a week (`config.DATA_GAP_FILLER_INTERVAL`), with the run key `webpoda_data_gap_filler_{start}_{end}`. Each run checks the spacecraft dates from a week ago (`DATA_GAP_FILLER_DELAY`) back another 30 days (`DATA_GAP_FILLER_WINDOW`), both days included. A run on 2026-10-12, for example, checks 2026-09-05 to 2026-10-05. Every day is therefore checked by four or five weekly runs. Like every sensor in this repo, it is stopped by default and has to be turned on in the Dagster UI.
+- **The `webpoda_data_gap_filler` asset** checks the instruments in `webpoda.INSTRUMENT_APIDS` one at a time. The ENA instruments are checked by pointing, using the latest repoint table, and the others by day. Each day or pointing is compared with its latest L0 file, and uploaded as a new L0 minor version only if the data changed or there was no L0 file yet. The uploaded files are then ingested like any other upload. An instrument that fails does not stop the others from being checked, but the run fails at the end if any instrument had errors. To check other dates or instruments, launch the asset from the Launchpad with the `start_date` and `end_date` (YYYYMMDD, inclusive) or `instruments` op config.
+- **Reading the results**:
+  - Every uploaded file is logged as a WARNING, `[instrument] NEW DATA FOUND, uploaded ...`, together with the L0 file it replaces, so filtering a run's logs to WARNING shows exactly what changed.
+  - Instruments without new data log `[instrument] No new data found`.
+  - Every run ends with one summary message.
+  - The materialization metadata records `new_data_found`, `num_uploaded_files`, `uploaded_files` and any `errors`. For a failed run, the same metadata is in the failure.
+- **Requirements**: The run reads the same `webpoda-token` secret and API key SSM parameter (`SSM_API_KEY_PARAMETER`) as the packet downloader. It also needs `S3_BUCKET`, because the library doesn't report which files it uploaded, so the asset looks for them in the data bucket. `IMAP_DATA_ACCESS_URL` must be this account's API, `https://api.{domain_name}`, which is the default in `stackbuilder.py`.
+
 **Relevant Files/Directories:**
 - **Dagster Logic & Customs**: `sds_data_manager/orchestration/` (including `imap_dagster.py`, `imap_job.py`, `imap_file.py`, `backup_checker.py`, `dependency.py`, `config.py`)
+- **WebPODA data gap filler**: `sds_data_manager/orchestration/data_gap_filler.py`
 - **Per-product overrides**: `sds_data_manager/orchestration/custom_behavior/`
 - **YAML job config**: `sds_data_manager/orchestration/dependencies/imap_{instrument}_dependencies.yaml` (large — grep for the `(data_type, descriptor)` key rather than reading whole files)
 - **Custom Partitions**: `sds_data_manager/orchestration/custom_partitions.py`

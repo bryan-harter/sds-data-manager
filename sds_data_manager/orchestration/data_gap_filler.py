@@ -505,6 +505,15 @@ def webpoda_data_gap_filler(
     bucket = os.environ.get("S3_BUCKET")
     if not bucket:
         raise Failure(description="The S3_BUCKET environment variable is not set.")
+    try:
+        # Uploads are found by looking for them in the bucket. A missing bucket
+        # would look like nothing was uploaded, because HEAD requests only
+        # return a 404 for both.
+        S3_CLIENT.head_bucket(Bucket=bucket)
+    except (BotoCoreError, ClientError) as e:
+        raise Failure(
+            description=f"Could not access the data bucket '{bucket}': {e!r}"
+        ) from e
     webpoda_token, api_key = _get_credentials()
 
     # Naive datetimes, because the library compares them to naive pointing times
