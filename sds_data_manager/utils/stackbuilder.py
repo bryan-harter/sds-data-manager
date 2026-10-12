@@ -486,8 +486,10 @@ def build_sds(
         "SECRET_NAME": db_secret_name,
         "ACCOUNT": env.account,
         "REGION": env.region,
+        # The data gap filler queries and uploads L0 files through this API,
+        # so it must be this account's API (dev or prod).
         "IMAP_DATA_ACCESS_URL": account_config.get(
-            "imap_data_access_url", "https://api.dev.imap-mission.com"
+            "imap_data_access_url", general_data_access_url
         ),
         "SSM_API_KEY_PARAMETER": "/imap-sdc/batch-jobs/api-key",
         "REPROCESSING_SQS_URL": reprocessing_tools_construct.reprocessing_sqs_url,
